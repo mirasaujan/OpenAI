@@ -184,7 +184,38 @@ public final class Client {
                 completion(response.result.flatMap { [$0] })
             }
     }
-
+    
+    public func edit(engine id: Engine.ID,
+                     input: String,
+                     instruction: String,
+                     editNumber: Int = 1,
+                     sampling: Sampling? = nil,
+                     completion: @escaping (Result<Edit, Swift.Error>) -> Void) {
+        var parameters: [String: Any?] = [
+            "model": id.description,
+            "input": input,
+            "instruction": instruction,
+            "n": editNumber,
+        ]
+        
+        switch sampling {
+        case .temperature(let temperature)?:
+            parameters["temperature"] = temperature
+        case .nucleus(let percentage)?:
+            parameters["top_p"] = percentage
+        default:
+            break
+        }
+        
+        session.request("https://api.openai.com/v1/edits",
+                        method: .post,
+                        parameters: parameters.compactMapValues { $0.map(AnyEncodable.init) },
+                        encoder: JSONParameterEncoder.default)
+        .responseDecodable(of: Response<Edit>.self, queue: .main) { response in
+            completion(response.result.flatMap { $0 } )
+        }
+    }
+    
     // MARK: Searches
 
     /**
